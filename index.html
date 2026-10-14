@@ -2,200 +2,735 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wiki Race</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Serif+4:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-/* Layout: sticky scoreboard on top, article reading column below */
+/* Layout: slim sticky scoreboard. Desktop: article column + sticky target panel on the right.
+   Phone: article full width, bottom bar with Back and a sheet holding the target panel.
+   The article itself is always printed on light paper so Wikipedia's own coloured tables stay readable. */
 :root{
-  --bg:#f6f7f4; --paper:#ffffff; --ink:#1d2321; --muted:#66706b;
-  --line:#dde2dc; --link:#1c5fa8; --accent:#c2410c; --good:#1f7a4d;
+  --bg:#e9ece5; --panel:#fbfbf8; --ink:#1d2321; --muted:#5f6964; --line:#d3d9d0;
+  --chip:#e1e6dd; --accent:#b4441c; --good:#1f7a4d; --shadow:0 1px 2px rgba(20,30,25,.06),0 8px 24px rgba(20,30,25,.06);
+  /* article paper, fixed light */
+  --a-bg:#ffffff; --a-ink:#202122; --a-muted:#54595d; --a-line:#c8ccd1; --a-head:#eaecf0; --a-link:#2a5db0; --a-tint:#f8f9fa;
   --display:"Fraunces",Georgia,serif; --body:"Source Serif 4",Georgia,serif;
-  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#141816; --paper:#1b201e; --ink:#e7ebe8; --muted:#97a19c;
-  --line:#2c3330; --link:#7fb2ec; --accent:#f08a4b; --good:#5cc08b; color-scheme:dark}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111513; --panel:#1a1f1d; --ink:#e6eae7; --muted:#9aa49f; --line:#2c3431;
+  --chip:#252c29; --accent:#f08a4b; --good:#5cc08b; --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111513; --panel:#1a1f1d; --ink:#e6eae7; --muted:#9aa49f; --line:#2c3431;
+  --chip:#252c29; --accent:#f08a4b; --good:#5cc08b; --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--body)}
-header{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);padding:12px 16px}
-.bar{max-width:820px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
-h1{font:600 22px var(--display);margin:0}
-.route{display:flex;gap:8px;align-items:center;flex:1;min-width:0;font-size:15px}
-.route b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.route .to{color:var(--accent)}
-.stats{display:flex;gap:16px;font:500 14px var(--mono);font-variant-numeric:tabular-nums}
-.stats span em{font-style:normal;color:var(--muted);margin-right:4px}
-.controls{max-width:820px;margin:8px auto 0;display:flex;flex-wrap:wrap;gap:8px}
-button,select{font:500 13px var(--mono);padding:7px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer}
+[hidden]{display:none!important}
+body{overflow-x:clip}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--body);-webkit-text-size-adjust:100%}
+button,input,select{font:500 13px var(--mono);color:var(--ink)}
+button{padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer;min-height:40px}
 button:hover{border-color:var(--ink)}
-button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-main{max-width:820px;margin:0 auto;padding:20px 16px 80px}
-.title{font:600 32px/1.2 var(--display);margin:0 0 4px;text-wrap:balance}
-.path{font:13px var(--mono);color:var(--muted);margin-bottom:20px;word-break:break-word}
-article{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 24px 24px;overflow-wrap:break-word}
-article h2,article h3{font-family:var(--display);font-weight:600;margin:1.4em 0 .4em}
-article a.ok{color:var(--link);text-decoration:none;border-bottom:1px solid transparent}
-article a.ok:hover{border-bottom-color:var(--link)}
-article a.ok.goal{color:var(--good);font-weight:600}
-article .dead{color:inherit;text-decoration:none;cursor:text}
-article img,article figure,article table,article .mw-editsection,article sup.reference{display:none}
-.msg{padding:40px 0;color:var(--muted);text-align:center}
-.win{background:var(--paper);border:2px solid var(--good);border-radius:8px;padding:24px;text-align:center}
-.win h2{font:600 28px var(--display);color:var(--good);margin:0 0 8px}
+button:disabled{opacity:.45;cursor:default;border-color:var(--line)}
+button.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=text],select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);min-height:40px;font-size:16px}
+.eyebrow{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+
+/* Scoreboard */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--panel);border-bottom:1px solid var(--line)}
+.bar{max-width:1240px;margin:0 auto;padding:8px 16px;display:flex;align-items:center;gap:12px}
+.logo{font:700 19px var(--display);white-space:nowrap}
+.chip{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:var(--chip);border:1px solid transparent;border-radius:999px;padding:4px 6px 4px 4px;min-height:40px;text-align:left;font:inherit;color:inherit}
+.chip img,.chip .noimg{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:none;background:var(--line)}
+.chip span{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.chip small{font:500 10px var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--accent)}
+.chip b{font:600 15px var(--body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats{display:flex;gap:14px;font:500 15px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stats div{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.stats small{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.loadbar{height:2px;background:var(--accent);transform-origin:left;transform:scaleX(0);opacity:0}
+body.loading .loadbar{opacity:1;animation:load 1.2s ease-out forwards}
+@keyframes load{from{transform:scaleX(.05)}to{transform:scaleX(.85)}}
+
+/* Game layout */
+.game{max-width:1240px;margin:0 auto;padding:20px 16px 110px;display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
+@media (min-width:1000px){
+  .side .tgt img.hero{height:110px}
+  .side .tgt .ext.clamp{-webkit-line-clamp:4}
+  .game{grid-template-columns:minmax(0,1fr) 320px;padding-bottom:60px}
+  .side{display:block!important;position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto}
+  .bottombar,.sheet,.scrim{display:none!important}
+  .chip{max-width:440px;cursor:default}
+}
+.side{display:none}
+body.loading #page{opacity:.45;pointer-events:none;transition:opacity .2s}
+
+/* Target panel (sidebar on desktop, sheet on phone) */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.tgt img.hero{display:block;width:100%;height:150px;object-fit:cover;background:var(--chip)}
+.tgt .in{padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px}
+.tgt h3{font:700 24px/1.15 var(--display);margin:0;text-wrap:balance}
+.tgt .desc{font-style:italic;color:var(--muted);margin:0;font-size:15px}
+.tgt .ext{margin:0;font-size:15px;line-height:1.55}
+.tgt .ext.clamp{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.more{align-self:flex-start;padding:0;min-height:0;border:0;background:none;color:var(--accent);font-size:12px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tags span{font:13px var(--sans);background:var(--chip);border-radius:5px;padding:2px 7px;color:var(--ink)}
+.tgt .src{font:12px var(--mono);color:var(--muted)}
+.tgt .src a{color:var(--muted)}
+.path{border-top:1px solid var(--line);padding:14px 16px 16px}
+.path ol{margin:8px 0 12px;padding-left:24px;font-size:15px;line-height:1.45}
+.path li{padding:2px 0}
+.path li::marker{font:12px var(--mono);color:var(--muted)}
+.path li:last-child{font-weight:600}
+.path .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Phone bottom bar + sheet */
+.bottombar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--panel);border-top:1px solid var(--line);
+  padding:8px 16px calc(8px + env(safe-area-inset-bottom,0px));display:flex;gap:8px}
+.bottombar button{flex:1}
+.scrim{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:31;max-height:86vh;overflow:auto;border-radius:16px 16px 0 0;
+  background:var(--panel);transform:translateY(105%);visibility:hidden;transition:transform .25s ease,visibility 0s .25s;padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet .grab{display:flex;justify-content:space-between;align-items:center;padding:8px 8px 0 16px;position:sticky;top:0;background:var(--panel);z-index:1}
+.sheet .panel{border:0;box-shadow:none;border-radius:0}
+body.sheet-open .scrim{opacity:1;pointer-events:auto}
+body.sheet-open .sheet{transform:none;visibility:visible;transition:transform .25s ease}
+
+/* Article title row */
+.atitle{font:700 clamp(28px,5vw,40px)/1.12 var(--display);margin:0 0 4px;text-wrap:balance}
+.asub{font:13px var(--mono);color:var(--muted);margin:0 0 14px}
+.asub b{color:var(--good)}
+
+/* ---------- Wikipedia content on paper ---------- */
+.paper{background:var(--a-bg);color:var(--a-ink);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+  padding:6px 28px 28px;overflow-wrap:break-word;font:16px/1.6 var(--sans);overflow:hidden;color-scheme:light}
+@media (max-width:640px){.paper{padding:2px 14px 20px;border-radius:10px;font-size:16px}}
+.paper .mw-parser-output{display:flow-root}
+.paper h2,.paper h3,.paper h4,.paper h5{color:var(--a-ink);line-height:1.25;margin:1.3em 0 .35em;clear:none}
+.paper h2{font:700 26px/1.25 var(--display);border-bottom:1px solid var(--a-line);padding-bottom:3px}
+.paper h3{font:700 20px var(--display)}
+.paper h4,.paper h5{font:700 16px var(--sans)}
+.paper p{margin:.5em 0 .8em}
+.paper ul,.paper ol{padding-left:1.6em;margin:.3em 0 .8em}
+.paper dl{margin:.3em 0 .8em}.paper dd{margin-left:1.6em}
+.paper blockquote{margin:1em 0;padding:0 1.2em;border-left:3px solid var(--a-line)}
+.paper pre,.paper code{font:13px var(--mono);background:var(--a-tint);border-radius:3px}
+.paper pre{padding:10px;overflow-x:auto}
+.paper a.ok{color:var(--a-link);text-decoration:none;cursor:pointer}
+.paper a.ok:hover{text-decoration:underline}
+.paper a.ok.hit{color:#fff;background:var(--good);border-radius:3px;padding:0 4px;font-weight:600;box-shadow:0 0 0 2px rgba(31,122,77,.25)}
+.paper .dead{color:inherit}
+.paper .hatnote{font-style:italic;color:var(--a-muted);font-size:14px;padding-left:1.6em;margin:.3em 0}
+.paper img{max-width:100%;height:auto;vertical-align:middle}
+.paper sup.reference,.paper .reference,.paper .mw-editsection,.paper .mw-cite-backlink,.paper .noprint.mw-collapsible-toggle,
+.paper .mw-collapsible-toggle:not(.wr-toggle),.paper .mwe-math-mathml-a11y,.paper .geo-nondefault,.paper .geo-multi-punct,
+.paper .wr-hidden,.paper .mw-empty-elt,.paper .error,.paper .Inline-Template{display:none}
+.paper .mwe-math-element{display:inline-block;max-width:100%;overflow-x:auto;vertical-align:middle}
+.paper .mwe-math-fallback-image-display{display:block;margin:.5em auto}
+
+/* tables */
+.paper .tablewrap{overflow-x:auto;margin:1em 0;max-width:100%;-webkit-overflow-scrolling:touch}
+.paper .tablewrap>table{margin:0}
+.paper .tablewrap>table>caption{text-align:left;padding-left:0}
+.paper table{border-collapse:collapse;font-size:14px;line-height:1.4;max-width:none}
+.paper table.wikitable,.paper table.wr-grid{background:var(--a-tint);border:1px solid var(--a-line)}
+.paper .wikitable>*>tr>th,.paper .wikitable>*>tr>td,.paper .wikitable>tr>th,.paper .wikitable>tr>td{border:1px solid var(--a-line);padding:5px 8px}
+.paper .wikitable>*>tr>th,.paper .wikitable>tr>th{background:var(--a-head);text-align:center}
+.paper table caption{font-weight:700;padding:6px;text-align:center}
+.paper td,.paper th{vertical-align:top}
+
+/* infobox */
+.paper .infobox,.paper table.infobox{float:right;clear:right;width:300px;max-width:300px;margin:.5em 0 1em 1.4em;background:var(--a-tint);
+  border:1px solid var(--a-line);border-collapse:collapse;font-size:13.5px;line-height:1.4;padding:3px}
+.paper .infobox th,.paper .infobox td{padding:3px 6px;vertical-align:top;text-align:left}
+.paper .infobox-above,.paper .infobox caption,.paper .infobox .fn{font:700 17px/1.3 var(--sans);text-align:center}
+.paper .infobox-header,.paper .infobox-subheader{text-align:center;background:var(--a-head)}
+.paper .infobox-image,.paper .infobox-caption{text-align:center}
+.paper .infobox-caption{font-size:12.5px;color:var(--a-muted)}
+.paper .infobox-label{white-space:normal;padding-right:.6em}
+.paper .infobox .wr-toggle{margin-left:.5em}
+@media (max-width:720px){
+  .paper .infobox,.paper table.infobox{float:none;width:100%;max-width:100%;margin:1em 0;display:table}
+}
+
+/* images & figures */
+.paper figure,.paper .thumb{margin:.6em 0 1em;display:table;max-width:100%}
+.paper figure[typeof~="mw:File/Thumb"],.paper figure[typeof~="mw:File/Frame"],.paper .thumbinner{border:1px solid var(--a-line);background:var(--a-tint);padding:4px;border-radius:2px}
+.paper figure.mw-halign-right,.paper .tright,.paper figure[typeof~="mw:File/Thumb"]:not(.mw-halign-left):not(.mw-halign-center):not(.mw-halign-none){float:right;clear:right;margin:.4em 0 1em 1.4em}
+.paper figure.mw-halign-left,.paper .tleft{float:left;clear:left;margin:.4em 1.4em 1em 0}
+.paper figure.mw-halign-center,.paper .center{margin-left:auto;margin-right:auto}
+.paper figcaption,.paper .thumbcaption{display:table-caption;caption-side:bottom;font-size:13px;line-height:1.4;color:var(--a-muted);padding:4px 4px 2px;background:var(--a-tint);border:1px solid var(--a-line);border-top:0}
+.paper figure:not([typeof~="mw:File/Thumb"]) figcaption{display:none}
+.paper .thumbinner{max-width:100%}
+.paper .magnify{display:none}
+@media (max-width:640px){
+  .paper figure,.paper .thumb,.paper .tright,.paper .tleft{float:none!important;margin:1em auto!important}
+  .paper .thumbinner{width:auto!important}
+}
+.paper ul.gallery,.paper .gallery{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none;margin:1em 0}
+.paper .gallerybox{width:auto!important;max-width:200px;font-size:13px;color:var(--a-muted)}
+.paper .gallerybox .thumb{width:auto!important;border:0;padding:0;margin:0;float:none}
+.paper .gallerybox div{width:auto!important;margin:0!important;height:auto!important}
+.paper .gallerytext{padding:2px 0}
+.paper .multiimageinner,.paper .tmulti .trow{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.paper .tmulti .thumbinner{display:flex;flex-direction:column;gap:4px}
+
+/* lists */
+.paper .hlist ul,.paper .hlist ol,.paper .hlist dl{display:inline;margin:0;padding:0}
+.paper .hlist li,.paper .hlist dd,.paper .hlist dt{display:inline;margin:0}
+.paper .hlist li:not(:last-child)::after,.paper .hlist dd:not(:last-child)::after{content:" · ";font-weight:700}
+.paper .plainlist ul,.paper ul.plainlist{list-style:none;margin:0;padding:0}
+.paper .div-col{column-width:22em;column-gap:2em;margin:.3em 0 .8em}
+.paper .div-col li{break-inside:avoid}
+.paper .refbegin{font-size:14px}
+
+/* show / hide boxes */
+.paper .wr-toggle{float:right;font:600 12px var(--sans);color:var(--a-link);background:transparent;border:1px solid var(--a-line);
+  border-radius:4px;padding:1px 8px;min-height:0;margin-left:.6em;cursor:pointer}
+.paper .wr-toggle:hover{background:var(--a-head);border-color:var(--a-link)}
+.paper table.wr-collapsed>tbody>tr:not(.wr-keep),.paper table.wr-collapsed>tr:not(.wr-keep){display:none}
+.paper .wr-collapsed>.mw-collapsible-content,.paper .NavFrame.wr-collapsed>.NavContent{display:none}
+.paper .NavFrame{border:1px solid var(--a-line);margin:.6em 0;padding:4px 6px;font-size:14px}
+.paper .NavHead{font-weight:700;background:var(--a-head);padding:3px 6px;text-align:center}
+.paper details{border:1px solid var(--a-line);border-radius:4px;padding:4px 8px;margin:.6em 0}
+.paper details>summary{cursor:pointer;font-weight:600}
+
+/* navboxes (only when enabled) */
+.paper .navbox{border:1px solid var(--a-line);font-size:13px;margin:1em 0;width:100%;clear:both}
+.paper .navbox table{width:100%}
+.paper .navbox-title,.paper .navbox-group,.paper .navbox th{background:var(--a-head);padding:3px 8px;text-align:center}
+.paper .navbox-group{text-align:right;white-space:nowrap}
+.paper .navbox-list{padding:3px 8px;text-align:left}
+.paper .navbox-even{background:var(--a-tint)}
+.paper .navbox-abovebelow{text-align:center;background:var(--a-tint)}
+@media (max-width:640px){.paper .navbox-group{white-space:normal}}
+
+/* ---------- Lobby ---------- */
+.lobby{max-width:1080px;margin:0 auto;padding:28px 16px 60px}
+.lobby h1{font:700 clamp(34px,6.5vw,58px)/1.02 var(--display);margin:0 0 10px;letter-spacing:-.02em;text-wrap:balance}
+.lobby h1 em{font-style:normal;color:var(--accent)}
+.lobby .lead{color:var(--muted);max-width:62ch;margin:0 0 22px}
+.match{display:grid;grid-template-columns:minmax(0,.85fr) auto minmax(0,1.15fr);grid-template-areas:"start arrow target" "setup arrow target";grid-template-rows:auto 1fr;gap:14px 18px;align-items:start}
+.match>.scard{grid-area:start}.match>.arrow{grid-area:arrow}.match>.panel{grid-area:target}.match>.setup{grid-area:setup}
+.arrow{align-self:center;font:700 30px var(--display);color:var(--muted)}
+.scard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;gap:12px;align-items:center;box-shadow:var(--shadow);min-width:0}
+.scard img,.scard .noimg{width:64px;height:64px;border-radius:8px;object-fit:cover;flex:none;background:var(--chip)}
+.scard h3{font:700 22px/1.15 var(--display);margin:2px 0}
+.scard p{margin:0;font-size:14px;color:var(--muted);font-style:italic}
+.scard>div{min-width:0}
+.match .panel{border-color:var(--accent);border-width:2px}
+@media (max-width:760px){.match{grid-template-columns:minmax(0,1fr);grid-template-areas:"start" "arrow" "target" "setup";grid-template-rows:none}.arrow{justify-self:center;transform:rotate(90deg);line-height:1}}
+.setup{display:grid;gap:12px;margin-top:6px}
+.setup .row>button.primary{flex:1 1 auto;font-size:15px;min-height:48px}
+.setup .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.setup .row>input[type=text]{flex:1 1 130px;min-width:0}
+.setup label.check{display:flex;gap:8px;align-items:center;font-size:15px;color:var(--muted);cursor:pointer}
+.setup label.check input{width:18px;height:18px;accent-color:var(--accent)}
+.rules{margin-top:28px;max-width:760px;color:var(--muted);font-size:15px}
+.rules summary{cursor:pointer;color:var(--ink);font-weight:600}
+.rules ul{padding-left:1.2em}
+.msg{padding:56px 16px;color:var(--muted);text-align:center;font-style:italic}
+
+/* Win */
+.win{max-width:720px;margin:24px auto;background:var(--panel);border:2px solid var(--good);border-radius:14px;padding:28px 22px;text-align:center;box-shadow:var(--shadow)}
+.win h2{font:700 clamp(30px,6vw,44px)/1.1 var(--display);color:var(--good);margin:0 0 8px}
+.win .big{font:500 20px var(--mono);margin:8px 0}
+.win .best{font-size:15px;color:var(--muted)}
+.win ol{text-align:left;display:inline-block;margin:16px auto;padding-left:28px}
+.win ol li::marker{font:12px var(--mono);color:var(--muted)}
+.win .acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--panel);
+  font:14px var(--sans);padding:10px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s;z-index:50;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <header>
   <div class="bar">
-    <h1>Wiki Race</h1>
-    <div class="route"><b id="from">…</b><span>→</span><b class="to" id="to">…</b></div>
-    <div class="stats">
-      <span><em>clicks</em><b id="clicks">0</b></span>
-      <span><em>time</em><b id="time">0:00</b></span>
+    <span class="logo">Wiki Race</span>
+    <button class="chip" id="chip" hidden aria-label="Show target article">
+      <span class="noimg" id="chipimg"></span>
+      <span><small>Reach</small><b id="chipt"></b></span>
+    </button>
+    <div class="stats" id="stats" hidden>
+      <div><small>clicks</small><b id="clicks">0</b></div>
+      <div><small>time</small><b id="time">0:00</b></div>
     </div>
   </div>
-  <div class="controls">
-    <select id="lang" aria-label="Wikipedia language">
-      <option value="en">English</option><option value="it">Italiano</option>
-      <option value="fr">Français</option><option value="de">Deutsch</option>
-    </select>
-    <button id="newgame">New game</button>
-    <button id="back">Back (+1 click)</button>
-    <button id="peek">Show target article</button>
-  </div>
+  <div class="loadbar"></div>
 </header>
-<main>
-  <div id="view"><p class="msg">Loading…</p></div>
-</main>
+
+<div id="app"><p class="msg">Loading…</p></div>
+
+<div class="bottombar" id="bottombar" hidden>
+  <button id="bbBack">← Back</button>
+  <button id="bbTarget" class="primary">Target &amp; path</button>
+</div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-label="Target and path">
+  <div class="grab"><span class="eyebrow">Your goal</span><button class="ghost" id="sheetClose">Close</button></div>
+  <div id="sheetBody"></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
-const S = {lang:'en', start:'', target:'', current:'', clicks:0, path:[], t0:0, timer:null, done:false};
+'use strict';
+const S = {lang:'en', navboxes:false, start:null, target:null, clicks:0, path:[], t0:0, timer:null, racing:false, busy:false, aliases:new Set()};
 const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const api = () => `https://${S.lang}.wikipedia.org/w/api.php`;
+const norm = t => String(t).replace(/_/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+const wikiUrl = t => `https://${S.lang}.wikipedia.org/wiki/${encodeURIComponent(String(t).replace(/ /g,'_'))}`;
 
-// Sections whose links do not count (references, see also, etc.)
-const SKIP_SECTIONS = /^(see also|references|notes|external links|further reading|bibliography|sources|citations|voci correlate|note|collegamenti esterni|bibliografia|altri progetti|voir aussi|références|liens externes|notes et références|siehe auch|literatur|weblinks|einzelnachweise)$/i;
+// Pages that are never valid moves. Portals first; the others are not articles at all.
+const BAD_NS = /^(portal|portale|portail|portal-diskussion|file|image|immagine|fichier|datei|bild|archivo|category|categoria|catégorie|kategorie|categoría|template|wikipedia|wp|help|aiuto|aide|hilfe|ayuda|special|speciale|spécial|spezial|especial|talk|discussione|discussion|diskussion|user|utente|utilisateur|benutzer|usuario|mediawiki|module|modulo|modul|draft|wikt|wiktionary|wikisource|s|commons|meta|mw|d|q|b|n|v|voy|species|wikidata|anexo|progetto|projet|anhang|media)\s*:/i;
 
+// Boxes removed from every page: portal boxes, sister-project boxes, maintenance banners, references, the table of contents.
+const ALWAYS_REMOVE = '.portal,.portalbox,.portal-bar,.portalborder,.noprint.portal,.box-Portal,.side-box,.sistersitebox,.sister-project,.sisterproject,' +
+  '.ambox,.ombox,.tmbox,.cmbox,.metadata.plainlinks:not(.infobox):not(.navbox),.mw-references-wrap,.reflist,ol.references,.references-small,.authority-control,' +
+  '.toc,#toc,.navbar,.mw-empty-elt,.shortdescription,link,meta,.mw-editsection,#coordinates,.navigation-not-searchable.hatnote-portal';
+const NAV_REMOVE = '.navbox,.navbox-styles,.vertical-navbox,.sidebar,.navbox-inner,[role="navigation"]:not(.hatnote)';
+
+async function getJSON(u){
+  let r;
+  try{ r = await fetch(u); }catch{ throw new Error('Could not reach Wikipedia. Check your connection and try again.'); }
+  if (!r.ok) throw new Error(`Wikipedia answered with an error (${r.status}). Try again in a moment.`);
+  return r.json();
+}
+
+/* ---------- Data ---------- */
 async function randomTitle(){
-  // Pick a random article with some substance (at least ~8 KB of text)
-  for (let i=0;i<5;i++){
-    const u = `${api()}?action=query&format=json&origin=*&generator=random&grnnamespace=0&grnlimit=10&prop=info`;
-    const d = await (await fetch(u)).json();
-    const pages = Object.values(d.query.pages).filter(p => p.length > 8000 && !/\(disambiguation\)|disambigua/i.test(p.title));
-    if (pages.length) return pages[0].title;
+  for (let i=0;i<6;i++){
+    const d = await getJSON(`${api()}?action=query&format=json&origin=*&generator=random&grnnamespace=0&grnlimit=15&prop=info|pageprops&ppprop=disambiguation`);
+    const pages = Object.values(d.query?.pages || {});
+    const p = pages.find(p => p.length > 9000 && !(p.pageprops && 'disambiguation' in p.pageprops) && !/^(list|lista|liste|anexo) /i.test(p.title));
+    if (p) return p.title;
   }
-  throw new Error('Could not find a random article. Check your connection and try again.');
+  throw new Error('Could not find a random article. Try again.');
+}
+
+async function findTitle(word){
+  const d = await getJSON(`${api()}?action=query&format=json&origin=*&list=search&srnamespace=0&srlimit=1&srsearch=${encodeURIComponent(word)}`);
+  const hit = d.query?.search?.[0];
+  if (!hit) throw new Error(`No article found for “${word}”.`);
+  return hit.title;
+}
+
+async function summary(title){
+  try{
+    const d = await getJSON(`https://${S.lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g,'_'))}`);
+    return {title:d.title || title, desc:d.description||'', extract:d.extract||'', img:d.thumbnail?.source||''};
+  }catch{ return {title, desc:'', extract:'', img:''}; }
+}
+
+// Everything that helps the player picture the target: summary, visible categories, redirects (aliases) and the topics its intro links to.
+async function targetInfo(title){
+  const [sum, meta, lead] = await Promise.all([
+    summary(title),
+    getJSON(`${api()}?action=query&format=json&origin=*&redirects=1&titles=${encodeURIComponent(title)}&prop=categories|redirects&clshow=!hidden&cllimit=20&rdlimit=200&rdnamespace=0`).catch(()=>null),
+    getJSON(`${api()}?action=parse&format=json&origin=*&redirects=1&prop=text&section=0&disableeditsection=1&page=${encodeURIComponent(title)}`).catch(()=>null)
+  ]);
+  const page = meta ? Object.values(meta.query?.pages || {})[0] || {} : {};
+  sum.cats = (page.categories || []).map(c => c.title.replace(/^[^:]+:/,'')).filter(c => !/articles|pages|wikipedia|wikidata|cs1|webarchive|use dmy|use mdy|short description|voci|pagine|articoli/i.test(c)).slice(0,6);
+  sum.aliases = [sum.title, title, ...(page.redirects || []).map(r => r.title)];
+  sum.related = [];
+  if (lead?.parse){
+    const doc = new DOMParser().parseFromString(lead.parse.text['*'],'text/html');
+    doc.querySelectorAll('.infobox,.navbox,.sidebar,.hatnote,table,figure,.thumb,sup').forEach(e=>e.remove());
+    const seen = new Set();
+    for (const a of doc.querySelectorAll('p a[href^="/wiki/"]')){
+      const t = decodeURIComponent(a.getAttribute('href').slice(6).split('#')[0]).replace(/_/g,' ');
+      if (BAD_NS.test(t) || seen.has(norm(t))) continue;
+      seen.add(norm(t)); sum.related.push(a.textContent.trim() || t);
+      if (sum.related.length >= 10) break;
+    }
+  }
+  return sum;
 }
 
 async function loadArticle(title){
-  const u = `${api()}?action=parse&format=json&origin=*&redirects=1&prop=text|displaytitle&disableeditsection=1&page=${encodeURIComponent(title)}`;
-  const d = await (await fetch(u)).json();
-  if (d.error) throw new Error(d.error.info);
+  const d = await getJSON(`${api()}?action=parse&format=json&origin=*&redirects=1&prop=text&disableeditsection=1&disablelimitreport=1&page=${encodeURIComponent(title)}`);
+  if (d.error) throw new Error(d.error.code === 'missingtitle' ? `“${title}” does not exist on this Wikipedia.` : d.error.info);
   return {title:d.parse.title, html:d.parse.text['*']};
 }
 
-function norm(t){ return decodeURIComponent(t).replace(/_/g,' ').trim().toLowerCase(); }
+/* ---------- Cleaning the article HTML ---------- */
+function isHeading(el){ return /^H[1-6]$/.test(el.tagName) || el.classList.contains('mw-heading'); }
+function headingLevel(el){ const h = /^H[1-6]$/.test(el.tagName) ? el : el.querySelector('h1,h2,h3,h4,h5,h6'); return h ? +h.tagName[1] : 9; }
 
-function cleanBody(html){
+function cleanBody(html, opts = {}){
+  const navboxes = opts.navboxes ?? S.navboxes;
+  const aliases = opts.aliases ?? S.aliases;
+  const self = norm(opts.self ?? '');
+  const linkRe = new RegExp(`^(?:(?:https?:)?//${S.lang}\\.(?:m\\.)?wikipedia\\.org)?/wiki/([^#?]+)|^\\./([^#?]+)`, 'i');
   const doc = new DOMParser().parseFromString(html,'text/html');
-  const root = doc.querySelector('.mw-parser-output') || doc.body;
-  // Remove everything that is not running text of the article chapters
-  root.querySelectorAll('table, .infobox, .navbox, .sidebar, .vertical-navbox, .hatnote, .dablink, .metadata, .ambox, .reflist, .references, .mw-references-wrap, .thumb, figure, .gallery, .toc, #toc, style, .shortdescription, .noprint, .portal, .portalbox, sup.reference, .mw-empty-elt').forEach(e=>e.remove());
+  let root = doc.querySelector('.mw-parser-output');
+  if (!root){ root = doc.createElement('div'); root.className = 'mw-parser-output'; root.append(...doc.body.childNodes); doc.body.append(root); }
 
-  // Drop the trailing sections like References, See also
-  let skipping = false;
-  [...root.children].forEach(el=>{
-    const head = el.matches('h2, .mw-heading2') ? el : null;
-    if (head){ skipping = SKIP_SECTIONS.test(head.textContent.trim()); }
-    if (skipping) el.remove();
-  });
+  root.querySelectorAll(ALWAYS_REMOVE).forEach(e => e.remove());
+  if (!navboxes) root.querySelectorAll(NAV_REMOVE).forEach(e => e.remove());
+  // TemplateStyles stay (they are scoped to .mw-parser-output). Inline <script> never.
+  root.querySelectorAll('script,noscript,iframe,object,embed,audio,video,source').forEach(e => e.remove());
 
-  // Keep only normal article links found in paragraphs and lists
-  root.querySelectorAll('a').forEach(a=>{
+  // Links: only links to articles are moves.
+  let moves = 0;
+  root.querySelectorAll('a').forEach(a => {
     const href = a.getAttribute('href') || '';
-    const m = href.match(/^\/wiki\/([^#?]+)/);
-    const inText = a.closest('p, li, dd');
-    if (m && inText && !decodeURIComponent(m[1]).includes(':') && !a.classList.contains('new')){
-      const t = decodeURIComponent(m[1]).replace(/_/g,' ');
+    const m = href.match(linkRe);
+    let title = '';
+    if (m){ const raw = m[1] || m[2]; try{ title = decodeURIComponent(raw).replace(/_/g,' '); }catch{ title = raw.replace(/_/g,' '); } }
+    if (title && norm(title) === self) title = '';   // anchors back into the same page are not moves
+    const isFile = a.classList.contains('mw-file-description') || a.classList.contains('image') || a.querySelector('img');
+    if (m && title && !BAD_NS.test(title) && !a.classList.contains('new') && !isFile){
       a.className = 'ok';
-      a.dataset.title = t;
-      a.href = '#';
+      a.dataset.title = title;
+      a.setAttribute('href', '#' );
+      a.setAttribute('role','link');
       a.removeAttribute('title');
-      if (norm(t) === norm(S.target)) a.classList.add('goal');
+      if (aliases.has(norm(title))) a.classList.add('hit');
+      moves++;
     } else {
       const s = doc.createElement('span');
       s.className = 'dead';
-      s.innerHTML = a.innerHTML;
+      s.append(...a.childNodes);
       a.replaceWith(s);
     }
   });
-  return root.innerHTML;
+
+  // Images: protocol-relative URLs, lazy loading, keep the larger srcset entries out.
+  root.querySelectorAll('img').forEach(i => {
+    const src = i.getAttribute('src') || '';
+    if (src.startsWith('//')) i.setAttribute('src','https:' + src);
+    else if (src.startsWith('/')) i.setAttribute('src',`https://${S.lang}.wikipedia.org${src}`);
+    i.removeAttribute('srcset');
+    i.setAttribute('loading','lazy');
+    i.setAttribute('decoding','async');
+  });
+  // Lazy-loaded images in the mobile format
+  root.querySelectorAll('span.lazy-image-placeholder').forEach(s => {
+    const img = doc.createElement('img'); img.src = 'https:' + (s.dataset.src || ''); img.width = +s.dataset.width || 0; s.replaceWith(img);
+  });
+
+  // Show/hide boxes (MediaWiki makes these with its own JavaScript, so they need ours).
+  root.querySelectorAll('.mw-collapsible-toggle,.collapseButton,.NavToggle').forEach(e => e.remove());
+  root.querySelectorAll('.mw-collapsible, table.collapsible').forEach(box => {
+    box.classList.add('mw-collapsible');
+    const startCollapsed = box.matches('.mw-collapsed,.autocollapse,.collapsed') || (box.closest('.navbox') && !box.parentElement?.closest('.mw-collapsible, table.collapsible'));
+    const btn = doc.createElement('button');
+    btn.type = 'button'; btn.className = 'wr-toggle';
+    if (box.tagName === 'TABLE'){
+      const cap = box.querySelector(':scope > caption');
+      const firstRow = box.querySelector(':scope > tbody > tr, :scope > thead > tr, :scope > tr');
+      if (cap){ cap.append(btn); }
+      else if (firstRow){ firstRow.classList.add('wr-keep'); (firstRow.lastElementChild || firstRow).append(btn); }
+      if (box.querySelector(':scope > thead')) box.querySelectorAll(':scope > thead > tr').forEach(r => r.classList.add('wr-keep'));
+    } else {
+      let content = box.querySelector(':scope > .mw-collapsible-content');
+      if (!content){
+        content = doc.createElement('div'); content.className = 'mw-collapsible-content';
+        content.append(...box.childNodes); box.append(content);
+      }
+      box.insertBefore(btn, content);
+    }
+    if (startCollapsed) box.classList.add('wr-collapsed');
+    btn.textContent = startCollapsed ? 'show' : 'hide';
+  });
+  root.querySelectorAll('.NavFrame').forEach(f => {
+    const head = f.querySelector(':scope > .NavHead');
+    if (!head) return;
+    const btn = doc.createElement('button'); btn.type = 'button'; btn.className = 'wr-toggle'; btn.textContent = 'show';
+    head.prepend(btn); f.classList.add('wr-collapsed');
+  });
+
+  // Wide tables scroll inside their own box (infoboxes keep their float).
+  root.querySelectorAll('table').forEach(t => {
+    if (t.matches('.infobox') || t.closest('.infobox, .navbox, .tablewrap') || t.parentElement?.closest('table')) return;
+    const w = doc.createElement('div'); w.className = 'tablewrap';
+    t.replaceWith(w); w.append(t);
+  });
+  root.querySelectorAll('table:not(.wikitable):not(.infobox)').forEach(t => {
+    if (t.getAttribute('border') === '1' || t.matches('.sortable')) t.classList.add('wikitable');
+  });
+
+  // Fixed pixel widths on wrappers break phones; let them shrink.
+  root.querySelectorAll('[style*="width"]').forEach(e => {
+    if (e.tagName === 'IMG') return;
+    const st = e.getAttribute('style');
+    if (/width\s*:\s*\d{3,}px/i.test(st)) e.style.maxWidth = '100%';
+  });
+
+  // Headings whose section is now empty (References, External links with nothing left…)
+  const kids = [...root.children];
+  kids.forEach((el, i) => {
+    if (!isHeading(el)) return;
+    const lvl = headingLevel(el);
+    let j = i + 1, hasContent = false;
+    for (; j < kids.length; j++){
+      const k = kids[j];
+      if (isHeading(k) && headingLevel(k) <= lvl) break;
+      if (!k.isConnected) continue;
+      if (isHeading(k)) { if (k.isConnected) hasContent = true; break; }
+      if (k.tagName === 'STYLE') continue;
+      if (k.textContent.trim() || k.querySelector('img')){ hasContent = true; break; }
+    }
+    if (!hasContent) el.remove();
+  });
+
+  return {html: root.outerHTML, moves};
 }
 
-async function show(title, countClick){
-  $('view').innerHTML = '<p class="msg">Loading…</p>';
-  try{
-    const art = await loadArticle(title);
-    if (countClick){ S.clicks++; $('clicks').textContent = S.clicks; }
-    S.current = art.title;
-    S.path.push(art.title);
-    if (norm(art.title) === norm(S.target)) return win();
-    $('view').innerHTML = `<h2 class="title">${art.title}</h2>
-      <div class="path">${S.path.join(' → ')}</div>
-      <article>${cleanBody(art.html)}</article>`;
-    window.scrollTo(0,0);
-  }catch(e){
-    $('view').innerHTML = `<p class="msg">${e.message}</p>`;
+/* ---------- Rendering ---------- */
+// A table wider than the screen gets squeezed to one word per line. Let it be as wide as its content needs
+// (up to about four screens) and scroll sideways inside its box instead.
+function fitTables(scope){
+  scope.querySelectorAll('.tablewrap').forEach(w => {
+    const t = w.firstElementChild;
+    if (!t || t.scrollWidth <= w.clientWidth + 1) return;
+    t.style.width = 'max-content';
+    const natural = t.offsetWidth;
+    t.style.width = Math.min(natural, Math.max(w.clientWidth * 4, 1000)) + 'px';
+  });
+}
+
+function targetPanel(t, full){
+  const ext = t.extract || 'No summary available for this article.';
+  return `<div class="panel tgt">
+    ${t.img ? `<img class="hero" src="${esc(t.img)}" alt="">` : ''}
+    <div class="in">
+      <span class="eyebrow" style="color:var(--accent)">Target article</span>
+      <h3>${esc(t.title)}</h3>
+      ${t.desc ? `<p class="desc">${esc(t.desc)}</p>` : ''}
+      <p class="ext ${full ? '' : 'clamp'}">${esc(ext)}</p>
+      ${!full && ext.length > 260 ? `<button class="more" data-act="more">Read more</button>` : ''}
+      ${t.cats?.length ? `<span class="eyebrow">Categories</span><div class="tags">${t.cats.map(c=>`<span>${esc(c)}</span>`).join('')}</div>` : ''}
+      ${t.related?.length ? `<span class="eyebrow">Its intro mentions</span><div class="tags">${t.related.map(c=>`<span>${esc(c)}</span>`).join('')}</div>` : ''}
+      <span class="src"><a href="${esc(wikiUrl(t.title))}" target="_blank" rel="noopener">Open on Wikipedia ↗</a></span>
+    </div>
+  </div>`;
+}
+
+function pathBlock(){
+  return `<div class="path">
+    <span class="eyebrow">Your path</span>
+    <ol>${S.path.map(p=>`<li>${esc(p)}</li>`).join('')}</ol>
+    <div class="acts">
+      <button data-act="back" ${S.path.length < 2 ? 'disabled' : ''}>← Back (+1 click)</button>
+      <button data-act="giveup" class="ghost">Give up</button>
+    </div>
+  </div>`;
+}
+
+function renderSide(){
+  const html = targetPanel(S.target, false).replace(/<\/div>\s*$/, pathBlock() + '</div>');
+  const side = document.querySelector('.side');
+  if (side) side.innerHTML = html;
+  $('sheetBody').innerHTML = html;
+  $('bbBack').disabled = S.path.length < 2;
+}
+
+function setHeader(on){
+  $('chip').hidden = !on; $('stats').hidden = !on; $('bottombar').hidden = !on;
+  document.querySelector('.logo').style.display = on && innerWidth < 640 ? 'none' : '';
+  if (on){
+    $('chipt').textContent = S.target.title;
+    const old = $('chipimg');
+    const n = S.target.img ? Object.assign(document.createElement('img'),{src:S.target.img,alt:''}) : Object.assign(document.createElement('span'),{className:'noimg'});
+    n.id = 'chipimg'; old.replaceWith(n);
   }
 }
 
-function win(){
-  S.done = true; clearInterval(S.timer);
-  $('view').innerHTML = `<div class="win"><h2>You made it</h2>
-    <p>${S.start} → ${S.target} in <b>${S.clicks}</b> clicks and <b>${$('time').textContent}</b>.</p>
-    <div class="path">${S.path.join(' → ')}</div>
-    <button onclick="newGame()">Play again</button></div>`;
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+function setLoading(on){ S.busy = on; document.body.classList.toggle('loading', on); }
+
+function openSheet(){ document.body.classList.add('sheet-open'); }
+function closeSheet(){ document.body.classList.remove('sheet-open'); }
+
+/* ---------- Game flow ---------- */
+async function go(title, count, isBack){
+  if (S.busy) return;
+  setLoading(true);
+  try{
+    const art = await loadArticle(title);
+    if (count){ S.clicks++; $('clicks').textContent = S.clicks; }
+    if (isBack) S.path.pop(); else S.path.push(art.title);
+    if (S.aliases.has(norm(art.title))) return win();
+    const {html} = cleanBody(art.html, {self: art.title});
+    $('page').innerHTML = `<h2 class="atitle">${esc(art.title)}</h2>
+      <p class="asub">Step ${S.path.length - 1} · ${S.clicks} click${S.clicks===1?'':'s'}</p>
+      <div class="paper">${html}</div>`;
+    fitTables($('page'));
+    if ($('page').querySelector('a.hit')) $('page').querySelector('.asub').insertAdjacentHTML('beforeend',' · <b>the target is linked on this page</b>');
+    renderSide();
+    window.scrollTo(0,0);
+  }catch(e){
+    toast(e.message);
+  }finally{ setLoading(false); }
+}
+
+function back(){
+  if (!S.racing || S.path.length < 2 || S.busy) return;
+  closeSheet();
+  go(S.path[S.path.length - 2], true, true);
 }
 
 function tick(){
   const s = Math.floor((Date.now()-S.t0)/1000);
-  $('time').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  $('time').textContent = s >= 3600 ? `${Math.floor(s/3600)}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}` : `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 }
 
-async function newGame(){
-  clearInterval(S.timer);
-  Object.assign(S,{clicks:0,path:[],done:false});
+function startRace(){
+  Object.assign(S,{clicks:0,path:[],racing:true});
+  S.aliases = new Set((S.target.aliases || [S.target.title]).map(norm));
   $('clicks').textContent = 0; $('time').textContent = '0:00';
-  $('from').textContent = '…'; $('to').textContent = '…';
-  $('view').innerHTML = '<p class="msg">Picking two random articles…</p>';
-  try{
-    S.start = await randomTitle();
-    do { S.target = await randomTitle(); } while (S.target === S.start);
-  }catch(e){ $('view').innerHTML = `<p class="msg">${e.message}</p>`; return; }
-  $('from').textContent = S.start; $('to').textContent = S.target;
-  S.t0 = Date.now(); S.timer = setInterval(tick,1000);
-  show(S.start,false);
+  $('app').innerHTML = `<div class="game"><main id="page"><p class="msg">Opening ${esc(S.start.title)}…</p></main><aside class="side" aria-label="Target and path"></aside></div>`;
+  setHeader(true);
+  S.t0 = Date.now(); clearInterval(S.timer); S.timer = setInterval(tick,1000);
+  try{ history.pushState({wr:1},''); }catch{}
+  go(S.start.title,false);
 }
 
-$('view').addEventListener('click', e=>{
-  const a = e.target.closest('a.ok');
-  if (!a || S.done) return;
-  e.preventDefault();
-  show(a.dataset.title, true);
-});
-$('back').onclick = ()=>{
-  if (S.path.length < 2 || S.done) return;
-  S.path.pop(); const prev = S.path.pop();
-  show(prev, true);
-};
-$('peek').onclick = ()=>{
-  window.open(`https://${S.lang}.wikipedia.org/wiki/${encodeURIComponent(S.target)}`,'_blank');
-};
-$('newgame').onclick = newGame;
-$('lang').onchange = e=>{ S.lang = e.target.value; newGame(); };
+function bestKey(){ return `wr2:${S.lang}:${S.navboxes?1:0}:${S.start.title}>${S.target.title}`; }
+function getBest(){ try{ return JSON.parse(localStorage.getItem(bestKey())); }catch{ return null; } }
+function setBest(v){ try{ localStorage.setItem(bestKey(), JSON.stringify(v)); }catch{} }
 
-newGame();
+function win(){
+  S.racing = false; clearInterval(S.timer); closeSheet();
+  const time = $('time').textContent;
+  const prev = getBest();
+  const record = !prev || S.clicks < prev.clicks;
+  if (record) setBest({clicks:S.clicks, time});
+  const share = `Wiki Race (${S.lang}): ${S.start.title} → ${S.target.title}\n${S.clicks} clicks in ${time}\n${S.path.join(' › ')}`;
+  setHeader(false);
+  $('app').innerHTML = `<section class="win" id="win">
+    <span class="eyebrow">Arrived</span>
+    <h2>${esc(S.target.title)}</h2>
+    <p class="big">${S.clicks} click${S.clicks===1?'':'s'} · ${time}</p>
+    <p class="best">${record ? (prev ? `New best for this pair. Your previous best was ${prev.clicks}.` : 'First finish on this pair.') : `Your best on this pair is ${prev.clicks} clicks.`}</p>
+    <ol>${S.path.map(p=>`<li>${esc(p)}</li>`).join('')}</ol>
+    <div class="acts">
+      <button class="primary" data-act="new">New race</button>
+      <button data-act="same">Same pair again</button>
+      <button data-act="share">Copy result</button>
+    </div>
+  </section>`;
+  $('app').querySelector('[data-act=share]').onclick = async e => {
+    try{ await navigator.clipboard.writeText(share); e.target.textContent = 'Copied'; }
+    catch{ e.target.textContent = 'Copy not allowed here'; }
+  };
+  window.scrollTo(0,0);
+}
+
+function smallCard(s, label){
+  return `<div class="scard">${s.img ? `<img src="${esc(s.img)}" alt="">` : '<span class="noimg"></span>'}
+    <div><span class="eyebrow">${label}</span><h3>${esc(s.title)}</h3>${s.desc ? `<p>${esc(s.desc)}</p>` : ''}</div></div>`;
+}
+
+async function lobby(startWord, targetWord){
+  S.racing = false; clearInterval(S.timer); closeSheet(); setHeader(false);
+  $('app').innerHTML = '<p class="msg">Picking two articles…</p>';
+  try{
+    let [a,b] = await Promise.all([
+      startWord ? findTitle(startWord) : randomTitle(),
+      targetWord ? findTitle(targetWord) : randomTitle()
+    ]);
+    for (let i = 0; i < 3 && norm(a) === norm(b) && !targetWord; i++) b = await randomTitle();
+    if (norm(a) === norm(b)) throw new Error('Start and target are the same article. Pick different words.');
+    [S.start, S.target] = await Promise.all([summary(a), targetInfo(b)]);
+  }catch(e){
+    $('app').innerHTML = `<p class="msg">${esc(e.message)}</p><p style="text-align:center"><button data-act="new">Try again</button></p>`;
+    return;
+  }
+  $('app').innerHTML = `<section class="lobby">
+    <h1>From <em>${esc(S.start.title)}</em> to <em>${esc(S.target.title)}</em></h1>
+    <p class="lead">Move only by clicking links inside the article: text, lists and tables all count. Portals, categories and files are not moves. Fewer clicks wins.</p>
+    <div class="match">
+      ${smallCard(S.start,'Start')}
+      <div class="arrow" aria-hidden="true">→</div>
+      ${targetPanel(S.target, true)}
+    <div class="setup">
+      <div class="row">
+        <button class="primary" data-act="start" id="startBtn">Start race</button>
+        <button data-act="new">Other random pair</button>
+      </div>
+      <div class="row">
+        <input type="text" id="sw" placeholder="Start word" value="${esc(startWord||'')}" autocomplete="off">
+        <input type="text" id="tw" placeholder="Target word" value="${esc(targetWord||'')}" autocomplete="off">
+        <button data-act="custom">Use words</button>
+      </div>
+      <div class="row">
+        <select id="lang" aria-label="Wikipedia language">
+          <option value="en">English Wikipedia</option><option value="it">Wikipedia in italiano</option>
+          <option value="fr">Wikipédia en français</option><option value="de">Deutsche Wikipedia</option>
+          <option value="es">Wikipedia en español</option>
+        </select>
+        <label class="check"><input type="checkbox" id="nav" ${S.navboxes?'checked':''}> Show navigation boxes (easier)</label>
+      </div>
+    </div>
+    </div>
+    <details class="rules"><summary>How it works</summary>
+      <ul>
+        <li>Leave a word empty to get a random article. A typed word opens the closest matching article.</li>
+        <li>Going back is allowed but costs one click, the same as on the real game.</li>
+        <li>When the target is linked on the page you are reading, the link turns green.</li>
+        <li>Navigation boxes are the big link tables at the bottom of many articles. They make most races much shorter, so they are off by default.</li>
+      </ul>
+    </details>
+  </section>`;
+  $('lang').value = S.lang;
+  $('lang').onchange = e => { S.lang = e.target.value; try{ localStorage.setItem('wr2:lang', S.lang); }catch{} lobby(); };
+  $('nav').onchange = e => { S.navboxes = e.target.checked; try{ localStorage.setItem('wr2:nav', S.navboxes?'1':'0'); }catch{} };
+  ['sw','tw'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') lobby($('sw').value.trim(), $('tw').value.trim()); }));
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('click', e => {
+  const tog = e.target.closest('.wr-toggle');
+  if (tog){
+    e.preventDefault();
+    const box = tog.closest('.mw-collapsible, .NavFrame');
+    const c = box.classList.toggle('wr-collapsed');
+    tog.textContent = c ? 'show' : 'hide';
+    return;
+  }
+  const a = e.target.closest('.paper a.ok');
+  if (a){ e.preventDefault(); if (S.racing) go(a.dataset.title, true); return; }
+  if (e.target.closest('.paper a')){ e.preventDefault(); return; }
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (!act) return;
+  if (act === 'start') startRace();
+  else if (act === 'new') lobby();
+  else if (act === 'same') startRace();
+  else if (act === 'custom') lobby($('sw').value.trim(), $('tw').value.trim());
+  else if (act === 'back') back();
+  else if (act === 'giveup') lobby();
+  else if (act === 'more'){ const p = e.target.closest('.in').querySelector('.ext'); p.classList.remove('clamp'); e.target.remove(); }
+});
+$('chip').onclick = () => { if (innerWidth < 1000) openSheet(); };
+$('bbTarget').onclick = openSheet;
+$('bbBack').onclick = back;
+$('scrim').onclick = closeSheet;
+$('sheetClose').onclick = closeSheet;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+// The phone's back gesture should go back one article instead of leaving the game.
+addEventListener('popstate', () => {
+  if (!S.racing) return;
+  try{ history.pushState({wr:1},''); }catch{}
+  if (document.body.classList.contains('sheet-open')) closeSheet(); else back();
+});
+addEventListener('resize', () => { if (S.racing) document.querySelector('.logo').style.display = innerWidth < 640 ? 'none' : ''; });
+
+try{ S.navboxes = localStorage.getItem('wr2:nav') === '1'; }catch{}
+try{ const l = localStorage.getItem('wr2:lang'); if (['en','it','fr','de','es'].includes(l)) S.lang = l; }catch{}
+if (!window.WR_TEST) lobby();
 </script>
 </body>
 </html>
